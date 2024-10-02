@@ -1,7 +1,7 @@
 from django.shortcuts import render
 
 # Create your views here.
-from .src.inference import test_model_on_video
+from .src.inference import *
 from .apps import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -28,16 +28,17 @@ class Prediction(APIView):
                     temp_video.write(chunk)
                 temp_video_path = temp_video.name
 
-            # Process the video and pass it to your model
             model = ApiConfig.model
-            label_encoder = LabelEncoder()
-            label_classes = ApiConfig.label_classes
-            label_encoder.classes_ = label_classes
+            label_encoder = ApiConfig.label_encoder
 
-            predicted_gesture = test_model_on_video(model, temp_video_path, label_encoder)
+            tensors = preprocess_video(temp_video_path)
+            features_extracted = extract_features_from_tensor(tensors)
+            model, label_encoder = load_model(model, label_encoder)
+            predicted_gesture = predict(model, label_encoder, features_extracted)[0]
 
             os.remove(temp_video_path)
 
             return Response({'result': predicted_gesture}, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
